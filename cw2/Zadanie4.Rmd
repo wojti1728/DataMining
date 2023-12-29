@@ -1,0 +1,120 @@
+---
+title: "Cwiczenia_3_Zadanie_4"
+author: "Przygotowali Michał Surówka oraz Wojciech Żelasko"
+date: "10/16/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Zadanie 4
+
+Zaczynamy od załadowania pakietów dplyr, zoo oraz ggplot2 które zostaną wykorzystane podczas preprocessingu oraz wizualizacji danych.
+
+```{r}
+library(dplyr)
+library(zoo)
+library(ggplot2)
+```
+
+Importujemy dane cars.txt i zapisujemy pod zmienna cars oraz zmieniamy typ danych kolumny 'cubicinches' na numeric.
+
+```{r cars}
+cars <- read.table("cars.txt",header = TRUE, sep = ",")
+cars$cubicinches <- as.numeric(cars$cubicinches) 
+```
+Następnie sprawdzamy poprawność wczytanych danych:
+```{r}
+str(cars)
+summary(cars)
+```
+Po wstępnej ocenie problemu wyświetlamy histogramy poszczególnych zmiennych w celu określenia które zmienne są bardziej podatne na wartości odstające.
+```{r}
+par(mfrow=c(3,3))
+hist(cars$cylinders)
+hist(cars$hp)
+hist(cars$mpg)
+hist(cars$cubicinches)
+hist(cars$weightlbs)
+hist(cars$time.to.60)
+hist(cars$year)
+```
+<br>Następnie z wykorzystaniem funkcji mutate oraz na podstawie własnej wiedzy i informacji znalezionych w internecie przeprowadzamy wstępny preprocessing wraz z usunieciem wartości odstających dla kolumn mpg, cylinders, cubicinches oraz hp.
+
+```{r}
+cars2 = cars %>%
+  mutate(mpg2 = ifelse(cars$mpg < 0 | cars$mpg > 70, NA, cars$mpg),
+         cylinders2 = ifelse(cars$cylinders > 8 | cars$cylinders < 2 , NA, cars$cylinders),
+         cubicinches2 = ifelse(cars$cubicinches > 400, NA, cars$cubicinches),
+         hp2 = ifelse(cars$hp > 300 | cars$hp < 0, NA, cars$hp))
+cars3<-cars2
+cars2<-distinct(cars2)
+```
+Jedną z metod które wykorzystujemy to powstałe wartości NA zastępujemy z wykorzystaniem funkcji na.approx().
+```{r}
+cars2$mpg2 = na.approx(cars2$mpg2, rule=2)
+cars2$cylinders2 = na.approx(cars2$cylinders2, rule=2)
+cars2$cubicinches2 = na.approx(cars2$cubicinches2, rule = 2)
+cars2$hp2 = na.approx(cars2$hp2, rule = 2)
+```
+Aby porównać nasze wyniki wykonujemy po raz kolejny histogramy dla powyższych zmiennych.
+```{r}
+par(mfrow=c(2,2))
+hist(cars2$cylinders2)
+hist(cars2$hp2)
+hist(cars2$mpg2)
+hist(cars2$cubicinches2)
+```
+<br>Powyższe histogramy na pierwszy rzut oka od razu wyglądają znacznie lepiej niż na danych przed preprocessingiem.
+
+<br>
+Teraz testujemy inny sposób z na zapełnienie wartości NA. Dla hp, mpg i cubicinches z wykorzystaniem średniej, natomiast dla cylinders przy użyciu mody. Dodatkowo używamy group_by aby dokładniej wymierzyć średnie oraz mode. 
+
+
+```{r}
+cars3 <- cars3 %>%
+  group_by(brand) %>%
+  mutate(
+    hp2=ifelse(is.na(hp2), mean(hp2, na.rm = TRUE),hp),
+    mpg2=ifelse(is.na(mpg2), mean(mpg2, na.rm = TRUE), mpg),
+    cubicinches2=ifelse(is.na(cubicinches2), mean(cubicinches2, na.rm = TRUE), cubicinches2),
+    cylinders2=ifelse(is.na(cylinders2),as.numeric(names(sort(table(cylinders2)))[1]),cylinders)
+    ) %>%
+  ungroup()
+cars3
+```
+Teraz w celach weryfikacji ponownie analizujemy histogramy oraz ploty.
+```{r}
+par(mfrow=c(2,2))
+hist(cars3$cylinders2)
+hist(cars3$hp2)
+hist(cars3$mpg2)
+hist(cars3$cubicinches2)
+```
+```{r}
+par(mfrow=c(2,2))
+plot(cars3$cylinders2, type="l")
+plot(cars3$hp2, type="l")
+plot(cars3$mpg2, type="l")
+plot(cars3$cubicinches2, type="l")
+```
+
+
+
+<br>
+W celach testowych wykorzystujemy regułę 3 sigm. Możliwe że ze wzgledu na fakt że mamy do czynienia z większym zbiorem danych, ta metoda będzie bardziej skuteczna. Sprawzimy to na zmiennej mpg.
+```{r}
+mean(cars2$mpg2,na.rm=TRUE) + (3*sd(cars2$mpg2,na.rm = TRUE))#46.94349
+mean(cars2$mpg2,na.rm=TRUE) - (3*sd(cars2$mpg2,na.rm = TRUE))#-1.174138
+cars4<-mutate(cars2, mpg2=ifelse(mpg2<46.94 & mpg2>-1.17,mpg2,NA))
+```
+
+```{r}
+par(mfrow=c(2,2))
+boxplot(cars4$mpg2)
+plot(cars4$mpg2, type="l")
+hist(cars4$mpg2, breaks=8)
+```
+<br>Metoda 3 sigm wydaje się bardzo skuteczna dla zmiennej mpg. 

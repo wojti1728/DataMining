@@ -1,0 +1,78 @@
+---
+title: "cw5"
+author: "KowalskiTarkaSlysZelaskoSurowka"
+date: "10/30/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE) 
+```
+## Zad 1 - próba poprawienia modelu 2
+
+```{r}
+library(corrplot)
+library(dplyr)
+
+corrplot(cor(mtcars))
+mtcars = mtcars %>%
+  mutate(cyl4 = (cyl==4))
+```
+
+
+
+```{r cars}
+max <- A <- B1 <- B2 <- B3 <- 0
+
+for (i in -2:0.2:2)
+{
+  for (j in -2:0.2:2)
+  {
+    for (k in -2:0.2:2)
+    {
+      for (l in -2:0.2:2)
+        model2 <- nls(mpg ~ a0 + b1*disp^2+b2*log(wt)+b3*cyl4, data = mtcars, start = list(a0 = i, b1 = j, b2=k, b3=l))
+
+        a0 = summary(model2)$parameters[1][1]
+        b1 = summary(model2)$parameters[2][1]
+        b2 = summary(model2)$parameters[3][1]
+        b3 = summary(model2)$parameters[4][1]
+
+        model2_results<-data.frame(pred=a0+b1*mtcars$disp*mtcars$disp+b2*log(mtcars$wt)+mtcars$cyl4*b3,
+                                   real=mtcars$mpg)
+
+        model2_results<-model2_results %>%
+          mutate(res=real-pred)
+        model2_R2<-(cor(model2_results$real, model2_results$pred))^2
+        
+        if (model2_R2 > max)
+          {
+            max = model2_R2
+            print("max")
+            A = a0
+            B1 = b1
+            B2 = b2
+            B3 = b3
+        }
+    }
+  }
+}
+
+```
+
+## Najlepsze parametry:
+
+```{r pressure, echo=FALSE}
+model2_results<-data.frame(pred=A+B1*mtcars$disp*mtcars$disp+B2*log(mtcars$wt)+mtcars$cyl4*B3,
+                           real=mtcars$mpg)
+model2_results<-model2_results %>%
+  mutate(res=real-pred)
+model2_R2<-(cor(model2_results$real, model2_results$pred))^2
+A
+B1
+B2
+B3
+model2_R2
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
